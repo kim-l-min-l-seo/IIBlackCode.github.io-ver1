@@ -275,9 +275,10 @@ Lunr is distributed under the terms of the [MIT License](http://opensource.org/l
 
 ## HTML TEMPLATE
 
-- [TEMPLATE01](https://IIBlackCode.github.io/HtmlTemplate/Game/index.html)
+   - Theme
+- [미사용 TEMPLATE](https://IIBlackCode.github.io/HtmlTemplate/Game/index.html)
 
-- [TEMPLATE02](https://IIBlackCode.github.io/HtmlTemplate/templated-industrious/index.html)
+- [KCCIST JSP THEME](https://IIBlackCode.github.io/HtmlTemplate/templated-industrious/index.html)
 
 
 
