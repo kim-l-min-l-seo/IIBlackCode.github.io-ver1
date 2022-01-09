@@ -1,7 +1,7 @@
 ---
 layout: single
 title:  "2022-01-06 목요일"
-Categories: JIHO
+categories: JIHO
 ---
 
 # 마이페이지 구독투홈
