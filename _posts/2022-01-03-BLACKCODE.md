@@ -1,6 +1,7 @@
 ---
 layout: single
 title:  "2022-01-03 월요일"
+categories: JIHO
 ---
 
 # 정기구독 상세
