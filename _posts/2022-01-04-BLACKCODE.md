@@ -1,7 +1,7 @@
 ---
 layout: single
 title:  "2022-01-04 화요일"
-categories: JIHO
+Categories: JIHO
 ---
 
 # 마이페이지 구독투홈
