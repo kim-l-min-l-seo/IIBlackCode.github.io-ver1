@@ -1,7 +1,7 @@
 ---
 layout: single
 title:  "SOURCE TREE 사용법"
-categories: TIP
+categories: "현대백화점MEMO"
 ---
 
 ## Commit 순서
