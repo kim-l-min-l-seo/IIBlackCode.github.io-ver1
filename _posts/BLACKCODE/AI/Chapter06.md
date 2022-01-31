@@ -1,0 +1,300 @@
+# ======================== 06-1 군집 알고리즘 ========================
+
+
+*   타깃을 모르는 비지도 학습
+*   항목 추가
+
+
+
+---
+layout: single
+title:  "CHAPTER 06"
+categories: AI
+---
+
+
+```python
+# 해당 링크로부터 데이터 파일 다운로드
+!wget https://bit.ly/fruits_300_data -O fruits_300.npy
+```
+
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Data Load
+fruits = np.load('fruits_300.npy')
+print("fruits 배열 크기 확인(샘플 수, 높이, 넓이) :",fruits.shape)
+print("fruits[:, 0, 0] Sample 300개 \n",fruits[:, 0, 0])
+print("fruits[0, :, 0] 높이 100 px \n",fruits[0, :, 0])
+print("fruits[0, 0, :] 넓이 100 px \n",fruits[0, 0, :])
+
+print("\n\nfruits 첫번째 배열 TEST 출력, cmap=gray")
+plt.imshow(fruits[0], cmap='gray')  # 배경에 집중
+plt.show()
+
+print("\n\nfruits배열 첫번째행 이미지 출력, cmap=gray_r")
+plt.imshow(fruits[0], cmap='gray_r')# 반전
+plt.show()
+
+print("\n\n바나나, 파인애플 이미지 출력")
+fig, axs = plt.subplots(1,2)
+axs[0].imshow(fruits[100], cmap='gray_r')
+axs[1].imshow(fruits[200], cmap='gray_r')
+plt.show()
+
+print("\n\n픽셀값 분석")
+print("fruits 데이터를 사과, 파인애플, 바나나로 각각 나누기")
+apple = fruits[0:100].reshape(-1, 100*100)
+pineapple = fruits[100:200].reshape(-1, 100*100)
+banana = fruits[200:300].reshape(-1, 100*100)
+print("apple:",apple.shape,",  pineapple:",pineapple.shape, ",   banana:",banana.shape)
+
+print("\n\n사과 샘플 100개에 대한 픽셀 평균값\n",apple.mean(axis=1))
+
+print("\n\n각 과일 히스토그램")
+plt.hist(np.mean(apple, axis=1), alpha=0.8)
+plt.hist(np.mean(pineapple, axis=1), alpha=0.8)
+plt.hist(np.mean(banana, axis=1), alpha=0.8)
+plt.legend(['apple', 'pineapple', 'banana'])
+plt.show()
+
+print("\n\n100X00픽셀에 대한 평균값 막대그래프")
+fig, axs = plt.subplots(1, 3, figsize=(20,5))
+axs[0].bar(range(10000), np.mean(apple, axis=0))
+axs[1].bar(range(10000), np.mean(pineapple, axis=0))
+axs[2].bar(range(10000), np.mean(banana, axis=0))
+plt.show()
+
+print("\n\n픽셀을 평균 낸 이미지")
+apple_mean = np.mean(apple, axis=0).reshape(100,100)
+pineapple_mean = np.mean(pineapple, axis=0).reshape(100,100)
+apple_banana = np.mean(banana, axis=0).reshape(100,100)
+fig, axs = plt.subplots(1,3, figsize=(20,5))
+axs[0].imshow(apple_mean, cmap='gray_r')
+axs[1].imshow(pineapple_mean, cmap='gray_r')
+axs[2].imshow(apple_banana, cmap='gray_r')
+plt.show()
+
+print("\n\n평균값과 가까운 사진 고르기")
+abs_diff = np.abs(fruits - apple_mean)
+abs_mean = np.mean(abs_diff, axis=(1,2))
+print("각 샘플의 오차평균 :",abs_mean.shape)
+
+apple_index = np.argsort(abs_mean)[:100]
+fig, axs = plt.subplots(10, 10, figsize = (10,10))
+for i in range(10):
+    for j in range(10):
+        axs[i,j].imshow(fruits[apple_index[i*10+j]], cmap='gray_r')
+        axs[i,j].axis('off')
+plt.show()
+```
+
+# ======================== 06-2 k - 평균 알고리즘 ========================
+
+
+1.   무작위로 k개의 클러스터 중심을 정함
+2.   각 샘플에서 가장 가까운 클러스터 중심을 찾아 해당 클러스터의 샘플로 지정
+3.   클러스터에 속한 샘플의 평균값으로 클러스터 중심을 변경
+4.   클러스터 중심에 변화가 없을 때까지 2번으로 돌아가 반복
+
+
+
+```python
+# 해당 링크로부터 데이터 파일 다운로드
+!wget https://bit.ly/fruits_300_data -O fruits_300.npy
+```
+
+
+```python
+print(" ***** [KMeans 클래스] ***** ")
+
+import numpy as np
+
+print("# Data Load")
+fruits = np.load('fruits_300.npy')
+print("fruits 배열 크기 확인(샘플 수, 높이, 넓이) :",fruits.shape)
+
+print("k-평균 모델훈련을 위한 3차원 배열(샘플개수, 너비, 높이)을 2차원배열(샘플개수, 너비*높이)로 변경")
+fruits_2d = fruits.reshape(-1, 100*100)
+print("fruits_2d 배열 크기 확인(샘플개수, 너비*높이) :",fruits_2d.shape)
+
+print("\n\n# 클러스터 개수 3으로 지정 후 학습 진행")
+from sklearn.cluster import KMeans
+km = KMeans(n_clusters=3, random_state=42)
+km.fit(fruits_2d)
+print(km.labels_)
+
+print("\n\n레이블 0,1,2로 모은 샘플의 개수 확인\n",np.unique(km.labels_, return_counts=True))
+
+import matplotlib.pyplot as plt
+def draw_fruits(arr, ratio=1):
+    n = len(arr) # 샘플 개수
+    # 한줄에 10개씩 이미지를 그림, 샘플개수/10 = 행 개수
+    rows = int(np.ceil(n/10))
+    # 행이 한개일 때 : 열의개수 = 샘플개수
+    cols = n if rows < 2 else 10
+    fig, axs = plt.subplots(rows, cols, figsize=(cols*ratio, rows*ratio), squeeze=False)
+
+    for i in range(rows):
+        for j in range(cols):
+            if i * 10 + j < n :
+                axs[i,j].imshow(arr[i*10 + j], cmap='gray_r')
+            axs[i,j].axis('off')
+    plt.show()
+
+print("\n\n레이블이 0인 과일 사진")
+draw_fruits(fruits[km.labels_==0])
+print("\n\n레이블이 1인 과일 사진")
+draw_fruits(fruits[km.labels_==1])
+print("\n\n레이블이 2인 과일 사진")
+draw_fruits(fruits[km.labels_==2])
+
+
+draw_fruits(km.cluster_centers_.reshape(-1, 100, 100), ratio=3)
+
+print("\n\n샘플에서 중심까지의 거리(클러스터) : ",km.transform(fruits_2d[100:101]))
+print("\n\n샘플fruits_2d[100:101]이 어느 레이블에 속하는지 예측 : \n",km.predict(fruits_2d[100:101]))
+print("\n\n샘플 이미지로 확인\n")
+draw_fruits(fruits[100:101])
+print("\n\n",km.n_iter_)
+
+
+inertia = []
+for k in range(2, 7):
+    km = KMeans(n_clusters=k, random_state=42)
+    km.fit(fruits_2d)
+    inertia.append(km.inertia_)
+
+plt.plot(range(2,7), inertia)
+plt.xlabel('k')
+plt.ylabel('inertia')
+plt.show()
+```
+
+# ======================== 06-3 주성분 분석(PCA) ========================
+
+
+1.   주성분 분석 : 차원축소 알고리즘
+
+
+
+```python
+# 해당 링크로부터 데이터 파일 다운로드
+!wget https://bit.ly/fruits_300_data -O fruits_300.npy
+```
+
+
+```python
+import numpy as np
+
+print("# Data Load")
+fruits = np.load('fruits_300.npy')
+
+print("\n\nfruits np배열 크기 확인(샘플 수, 높이, 넓이) :\n",fruits.shape)
+
+print("\n\n3차원 배열(샘플개수, 너비, 높이)을 2차원배열(샘플개수, 너비*높이)로 변경")
+fruits_2d = fruits.reshape(-1, 100*100)
+
+print("\n\nfruits_2d 배열 크기 확인(샘플개수, 너비*높이) :\n",fruits_2d.shape)
+
+print("\n\n주성분 분석 알고리즘 진행, n_components=50")
+from sklearn.decomposition import PCA
+pca = PCA(n_components=50)
+pca.fit(fruits_2d)
+
+print("\n\npca의 크기 :",pca.components_.shape)
+
+import matplotlib.pyplot as plt
+def draw_fruits(arr, ratio=1):
+    n = len(arr) # 샘플 개수
+    # 한줄에 10개씩 이미지를 그림, 샘플개수/10 = 행 개수
+    rows = int(np.ceil(n/10))
+    # 행이 한개일 때 : 열의개수 = 샘플개수
+    cols = n if rows < 2 else 10
+    fig, axs = plt.subplots(rows, cols, figsize=(cols*ratio, rows*ratio), squeeze=False)
+
+    for i in range(rows):
+        for j in range(cols):
+            if i * 10 + j < n :
+                axs[i,j].imshow(arr[i*10 + j], cmap='gray_r')
+            axs[i,j].axis('off')
+    plt.show()
+
+print("\n\npca를 이미지로 그리기\n")
+draw_fruits(pca.components_.reshape(-1,100,100))
+
+
+print("\n\nfruits_2d의 형태 :",fruits_2d.shape)
+
+print("\n\nfruits_2d의 형태 변환")
+fruits_pca = pca.transform(fruits_2d)
+print("\n\nfruits_pca의 형태",fruits_pca.shape)
+
+print("\n\n원본 데이터 재구성, 복원")
+fruits_inverse = pca.inverse_transform(fruits_pca)
+print(fruits_inverse.shape)
+
+print("\n\n 100x100 크기로 변환 후 100개씩 나눠 출력\n")
+fruits_reconstruct = fruits_inverse.reshape(-1, 100, 100)
+for start in [0, 100, 200]:
+    draw_fruits(fruits_reconstruct[start:start+100])
+    print("\n")
+
+print("\n\n 총 분산 비율 :",np.sum(pca.explained_variance_ratio_))
+
+print("\n\n설명된 분산의 비율을 그래프로 출력")
+plt.plot(pca.explained_variance_ratio_)
+plt.show()
+
+print("\n\n다른 알고리즘과 함께 사용하기")
+
+print("\n\n로지스틱 회귀 모델")
+from sklearn.linear_model import LogisticRegression
+lr = LogisticRegression()
+
+target = np.array([0]*100 + [1]*100 + [2]*100)
+print("\n\ntarget 값 : ",target)
+
+print("\n\n교차검증점수")
+from sklearn.model_selection import cross_validate
+
+print("\n\n 차원 수 10000개")
+scores = cross_validate(lr, fruits_2d, target)
+print("예측 정확도 : ",np.mean(scores['test_score']))
+print("훈련된 시간 : ",np.mean(scores['fit_time']))
+
+print("\n\n 차원 수 50개")
+scores = cross_validate(lr, fruits_pca, target)
+print("예측 정확도 : ",np.mean(scores['test_score']))
+print("훈련된 시간 : ",np.mean(scores['fit_time']))
+
+
+print("\n\nn_components=0.5 - 설명된 분산의 비율 50%\n 50%정도를 설명할 수 있는 주성분의 개수 구하기")
+pca = PCA(n_components=0.5)
+pca.fit(fruits_2d)
+print("50%정도를 설명할 수 있는 주성분의 개수 : ",pca.n_components_,"개만 있으면 50%의 분산을 설명할 수 있다.")
+
+print("\n\npca로 원본객체 변환")
+fruits_pca = pca.transform(fruits_2d)
+print("\n\nfruits_pca의 형태",fruits_pca.shape," 주성분이 2개이므로 각각 300개의 샘플이 2개의 특성만 갖고있다")
+
+scores = cross_validate(lr, fruits_pca, target)
+print("예측 정확도 : ",np.mean(scores['test_score']))
+print("훈련된 시간 : ",np.mean(scores['fit_time']))
+
+
+print("\n\n군집과 함께 사용하기")
+from sklearn.cluster import KMeans
+km = KMeans(n_clusters=3, random_state=42)
+km.fit(fruits_pca)
+print("",np.unique(km.labels_, return_counts=True))
+
+print("\n\n시각화")
+for label in range(0,3):
+    data = fruits_pca[km.labels_ == label]
+    plt.scatter(data[:,0], data[:,1])
+plt.legend(['apple','banana', 'pineapple'])
+plt.show()
+```

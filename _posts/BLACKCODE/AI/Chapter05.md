@@ -1,0 +1,534 @@
+# ======================== 05-1 결정트리 ========================
+
+---
+layout: single
+title:  "CHAPTER 05"
+categories: AI
+---
+
+
+```python
+import pandas as pd
+
+wine = pd.read_csv('https://bit.ly/wine_csv_data')
+wine.head()
+```
+
+
+```python
+# 열의 데이터타입과 누락된 데이터 확인
+wine.info()
+```
+
+
+```python
+# 열에 대한 간단한 통계 출력
+wine.describe()
+```
+
+
+```python
+# 데이터프레임을 넘파이 배열로 변환
+data = wine[['alcohol','sugar','pH']].to_numpy()
+target = wine['class'].to_numpy()
+```
+
+
+```python
+# 사이킷런을 통해 훈련세트와 테스트세트 분류
+#  test_size=0.2 : 20%를 테스트 세트로 지정
+from sklearn.model_selection import train_test_split
+train_input, test_input, train_target, test_target = train_test_split(data, target, test_size=0.2 ,random_state=42)
+```
+
+
+```python
+# 훈련세트, 테스트세트 데이터 수,열의 수 확인
+print(train_input.shape, test_input.shape)
+```
+
+
+```python
+# 훈련세트 특성표준화 전처리
+from sklearn.preprocessing import StandardScaler
+ss = StandardScaler()
+ss.fit(train_input)
+train_scaled = ss.transform(train_input)
+test_scaled = ss.transform(test_input)
+```
+
+로지스틱 회귀 모델 훈련
+
+
+```python
+# 로지스틱 회귀 모델 훈련
+from sklearn.linear_model import LogisticRegression
+lr = LogisticRegression()
+lr.fit(train_scaled, train_target)
+print(lr.score(train_scaled, train_target)) # 훈련세트
+print(lr.score(test_scaled, test_target))   # 테스트세트
+#훈련세트와 테스트세트 점수가 낮다 : 과소적합
+```
+
+
+```python
+# 로지스틱 회귀모델 계수와 절편
+print(lr.coef_, lr.intercept_)
+```
+
+결정트리 모델 훈련
+
+
+```python
+# 결정트리 모델 훈련
+from sklearn.tree import DecisionTreeClassifier
+dt = DecisionTreeClassifier()
+dt.fit(train_scaled, train_target)
+print(dt.score(train_scaled, train_target)) # 훈련세트
+print(dt.score(test_scaled, test_target))   # 테스트세트
+```
+
+
+```python
+# 결정트리 모델 시각화
+import matplotlib.pyplot as plt
+from sklearn.tree import plot_tree
+plt.figure(figsize=(10,7))
+plot_tree(dt)
+plt.show()
+```
+
+
+```python
+# 트리의 깊이를 제한해서 출력
+plt.figure(figsize=(10,7))
+plot_tree(dt, max_depth=1, filled=True, feature_names=['alcohol','sugar','pH'])
+plt.show()
+```
+
+
+```python
+# 루트노드 아래로 최대 3개 노드까지만 성장
+dt = DecisionTreeClassifier(max_depth=3, random_state=42)
+dt.fit(train_scaled, train_target)
+print(dt.score(train_scaled, train_target)) # 훈련세트
+print(dt.score(test_scaled, test_target))   # 테스트세트
+```
+
+
+```python
+plt.figure(figsize=(20,15))
+plot_tree(dt, filled=True, feature_names=['alcohol','sugar','pH'])
+plt.show()
+```
+
+
+```python
+# 결정트리는 표준화 전처리 과정이 필요없다.
+# 루트노드 아래로 최대 3개 노드까지만 성장
+dt = DecisionTreeClassifier(max_depth=3, random_state=42)
+dt.fit(train_scaled, train_target)
+print(dt.score(train_input, train_target)) # 훈련세트
+print(dt.score(test_input, test_target))   # 테스트세트
+```
+
+
+```python
+plt.figure(figsize=(20,15))
+plot_tree(dt, filled=True, feature_names=['alcohol','sugar','pH'])
+plt.show()
+```
+
+
+```python
+print(dt.feature_importances_)
+```
+
+# ====================== 05-2 교차 검증과 그리드 서치 ======================
+
+
+```python
+# Wine데이터 준비
+
+import pandas as pd
+
+wine = pd.read_csv('https://bit.ly/wine_csv_data')
+wine.head()
+```
+
+
+```python
+# class열을 타깃으로 사용
+# 나머지 열은 특성 배열에 저장
+
+data = wine[['alcohol','sugar','pH']].to_numpy()
+target = wine['class'].to_numpy()
+```
+
+
+```python
+# 사이킷런을 통해 훈련세트와 테스트세트 분류
+# test_size=0.2 : 20%를 테스트 세트로 지정
+
+from sklearn.model_selection import train_test_split
+train_input, test_input, train_target, test_target = train_test_split(data, target, test_size=0.2,random_state=42)
+print('train_input :',train_input.shape,'\n',train_input,'\n','test_input :',test_input.shape,'\n',test_input)
+```
+
+
+```python
+# train set을 다시 훈련세트와 검증세트로 나눔
+sub_input, val_input, sub_target, val_target = train_test_split(train_input, train_target, test_size=0.2,random_state=42)
+
+# 훈련세트와 검증세트 크기 확인
+print('sub_input :',sub_input.shape,'\n',sub_input,'\n','val_input :',val_input.shape,'\n',val_input)
+```
+
+
+```python
+# 결정트리 모델 훈련
+from sklearn.tree import DecisionTreeClassifier
+dt = DecisionTreeClassifier(random_state=42)
+dt.fit(sub_input, sub_target)
+
+# 훈련결과 : 과대적합
+print(dt.score(sub_input, sub_target)) # 훈련세트
+print(dt.score(val_input, val_target)) # 테스트세트
+```
+
+
+```python
+# 교차 검증
+from sklearn.model_selection import cross_validate
+
+# cross_validate() : fit_time, score_time, test_score키를 가진 딕셔너리 반환
+scores = cross_validate(dt, train_input, train_target)
+
+# fit_time : 모델을 훈련하는 시간
+print('fit_time(모델을 훈련하는 시간)   : ',scores['fit_time'])
+# score_time : 모델을 검증하는 시간
+print('score_time(모델을 검증하는 시간) : ',scores['score_time'])
+# test_score : 교차 검증의 최종점수
+print('test_score(교차 검증의 최종점수) : ',scores['test_score'])
+```
+
+
+```python
+# 교차 검증 점수
+import numpy as np
+print(np.mean(scores['test_score']))
+```
+
+
+```python
+from sklearn.model_selection import StratifiedKFold
+score = cross_validate(dt, train_input, train_target, cv=StratifiedKFold())
+print(np.mean(score['test_score']))
+```
+
+
+```python
+#훈련세트 섞은 후 교차검증
+
+splitter = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+sclre = cross_validate(dt, train_input,train_target, cv=splitter)
+print(np.mean(score['test_score']))
+```
+
+
+```python
+# 그리드 서치
+# 0.0001 부터 0.0005까지 0.0001씩 증가하는 5개값으로 시도
+from sklearn.model_selection import GridSearchCV
+params = {'min_impurity_decrease' : [0.0001, 0.0002, 0.0003, 0.0004, 0.0005]}
+gs = GridSearchCV(DecisionTreeClassifier(random_state=42), params, n_jobs=-1)
+gs.fit(train_input, train_target)
+```
+
+
+```python
+dt = gs.best_estimator_
+print(dt.score(train_input, train_target))
+```
+
+
+```python
+print(gs.best_params_)
+```
+
+
+```python
+print(gs.cv_results_['mean_test_score'])
+```
+
+
+```python
+best_index = np.argmax(gs.cv_results_['mean_test_score'])
+print(gs.cv_results_['params'][best_index])
+```
+
+
+```python
+params = {'min_impurity_decrease':np.arange(0.0001, 0.001, 0.0001),
+          'max_depth':range(5, 20, 1),
+          'min_samples_split':range(2,100,10)}
+```
+
+
+```python
+gs = GridSearchCV(DecisionTreeClassifier(random_state=42), params, n_jobs=-1)
+gs.fit(train_input, train_target)
+```
+
+
+```python
+print(gs.best_params_)
+```
+
+
+```python
+print(np.max(gs.cv_results_['mean_test_score']))
+```
+
+
+```python
+from scipy.stats import uniform, randint
+rgen = randint(0,10)
+rgen.rvs(10)
+```
+
+
+```python
+np.unique(rgen.rvs(1000), return_counts=True)
+```
+
+
+```python
+ugen = uniform(0,1)
+ugen.rvs(10)
+```
+
+
+```python
+params = {'min_impurity_decrease':np.arange(0.0001, 0.001),
+          'max_depth':range(20, 50),
+          'min_samples_split':range(2,25),
+          'min_samples_leaf':range(1,25)}
+```
+
+
+```python
+from sklearn.model_selection import RandomizedSearchCV
+gs = RandomizedSearchCV(DecisionTreeClassifier(random_state=42), params, n_iter=100, n_jobs=-1, random_state=42)
+gs.fit(train_input, train_target)
+print(gs.best_params_)
+print(np.max(gs.cv_results_['mean_test_score']))
+```
+
+
+```python
+dt = gs.best_estimator_
+print(dt.score(test_input, test_target))
+```
+
+# ====================== 05-3 트리의 앙상블 ======================
+
+
+```python
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
+wine = pd.read_csv('https://bit.ly/wine_csv_data')
+print('Wine Data \n',wine.head(),'\n\n')
+
+data = wine[['alcohol','sugar','pH']].to_numpy()
+print("alcohol, sugar, pH를 numpy배열로 변환 후 data에 저장 \n",data.shape,'\n',data,'\n\n')
+
+target = wine['class'].to_numpy()
+print("class를 numpy배열로 변환 후 target에 저장 :",target.shape,'\n',target,'\n\n')
+
+print("sklearn을 이용하여 data와 target을 train, test세트 분류\n")
+from sklearn.model_selection import train_test_split
+train_input, test_input, train_target, test_target = train_test_split(data, target, test_size=0.2,random_state=42)
+print('train_input :',train_input.shape,'\n',train_input,'\n','test_input :',test_input.shape,'\n',test_input,'\n\n')
+
+# 랜덤포레스트
+print("랜덤포레스트를 이용한 교차 검증 점수 확인")
+from sklearn.model_selection import cross_validate
+from sklearn.ensemble import RandomForestClassifier
+rf = RandomForestClassifier(n_jobs=-1, random_state=42)
+scores = cross_validate(rf, train_input, train_target, return_train_score=True, n_jobs=-1)
+print(np.mean(scores['train_score']), np.mean(scores['test_score']),'\n\n')
+
+rf.fit(train_input, train_target)
+print('랜덤 포레스트 모델을 훈련한 train세트의 특성 중요도\n alcohol,     sugar,     pH\n',rf.feature_importances_,'\n당도점수가 높다\n\n ')
+
+print("train세트로 훈련하여 OOB 점수 출력...")
+rf = RandomForestClassifier(oob_score=True, n_jobs=-1, random_state=42)
+rf.fit(train_input, train_target)
+print("OOB SCORE :",rf.oob_score_,'\n\n')
+
+# 엑스트라 트리
+print("엑스트라 트리로 모델 교차 검증 점수 확인 ")
+from sklearn.ensemble import ExtraTreesClassifier
+et = ExtraTreesClassifier(n_jobs=-1, random_state=42)
+score = cross_validate(et, train_input, train_target, return_train_score=True, n_jobs=-1)
+print(np.mean(scores['train_score']),np.mean(scores['test_score']),'\n\n')
+
+print("엑스트라 트리로 훈련한 train세트의 특성 중요도\n alcohol,     sugar,     pH")
+et.fit(train_input, train_target)
+print(et.feature_importances_)
+
+# 그라이언트 부스팅
+print("그레이디언트 부스팅을 이용해 와인 데이터셋의 교차 검증 점수 확인")
+from sklearn.ensemble import GradientBoostingClassifier
+gb = GradientBoostingClassifier(random_state=42)
+scores = cross_validate(gb, train_input, train_target, return_train_score=True, n_jobs=-1)
+print(np.mean(scores['train_score']), np.mean(scores['test_score']),'\n\n')
+
+print("성능향상을 위해 학습률증가 및 트리개수 증가 후 점수 확인")
+gb = GradientBoostingClassifier(n_estimators=500, learning_rate=0.2,random_state=42)
+scores = cross_validate(gb, train_input, train_target, return_train_score=True, n_jobs=-1)
+print(np.mean(scores['train_score']), np.mean(scores['test_score']),'\n\n')
+
+print("그레이디언트 부스팅으로 훈련한 train세트의 특성 중요도\n alcohol,     sugar,     pH")
+gb.fit(train_input, train_target)
+print(gb.feature_importances_,'\n\n')
+
+# 히스토그램 기반 그레이디언트 부스팅
+print("히스토그램 기반 그레이디언트 부스팅을 이용한 검증점수 확인")
+from sklearn.experimental import enable_hist_gradient_boosting
+from sklearn.ensemble import HistGradientBoostingClassifier
+hgb = HistGradientBoostingClassifier(random_state=42)
+scores = cross_validate(hgb, train_input, train_target, return_train_score=True)
+print(np.mean(scores['train_score']), np.mean(scores['test_score']),'\n\n')
+
+print("히스토그램 기반 그레이디언트 부스팅으로 훈련한 train세트의 특성 중요도\n alcohol,     sugar,     pH")
+from sklearn.inspection import permutation_importance
+hgb.fit(train_input, train_target)
+result = permutation_importance(hgb, train_input, train_target, n_repeats=10, random_state=42, n_jobs=-1)
+print(result.importances_mean,'\n\n')
+
+print("히스토그램 기반 그레이디언트 부스팅으로 훈련한 test세트의 특성 중요도\n alcohol,     sugar,     pH")
+result = permutation_importance(hgb, test_input, test_target, n_repeats=10, random_state=42, n_jobs=-1)
+print(result.importances_mean,'\n\n')
+
+print("테스트세트의 성능 최종 확인")
+hgb.score(test_input, test_target)
+
+print("XGBoost를 사용해 와인 데이터의 교차 검증 점수 확인")
+from xgboost import XGBClassifier
+xgb = XGBClassifier(tree_method='hist', random_state=42)
+scores = cross_validate(xgb, train_input, train_target, return_train_score=True)
+print(np.mean(scores['train_score']), np.mean(scores['test_score']),'\n\n')
+
+print("LightGBM를 사용해 와인 데이터의 교차 검증 점수 확인")
+from lightgbm import LGBMClassifier
+lgb = LGBMClassifier(random_state=42)
+scores = cross_validate(lgb, train_input, train_target, return_train_score=True, n_jobs=-1)
+print(np.mean(scores['train_score']), np.mean(scores['test_score']),'\n\n')
+```
+
+    Wine Data 
+        alcohol  sugar    pH  class
+    0      9.4    1.9  3.51    0.0
+    1      9.8    2.6  3.20    0.0
+    2      9.8    2.3  3.26    0.0
+    3      9.8    1.9  3.16    0.0
+    4      9.4    1.9  3.51    0.0 
+    
+    
+    alcohol, sugar, pH를 numpy배열로 변환 후 data에 저장 
+     (6497, 3) 
+     [[ 9.4   1.9   3.51]
+     [ 9.8   2.6   3.2 ]
+     [ 9.8   2.3   3.26]
+     ...
+     [ 9.4   1.2   2.99]
+     [12.8   1.1   3.34]
+     [11.8   0.8   3.26]] 
+    
+    
+    class를 numpy배열로 변환 후 target에 저장 : (6497,) 
+     [0. 0. 0. ... 1. 1. 1.] 
+    
+    
+    sklearn을 이용하여 data와 target을 train, test세트 분류
+    
+    train_input : (5197, 3) 
+     [[10.5   7.7   3.19]
+     [12.4   2.1   3.26]
+     [11.8   2.1   3.41]
+     ...
+     [ 9.5   5.6   3.24]
+     [ 9.5   8.    3.18]
+     [ 9.5   2.7   3.51]] 
+     test_input : (1300, 3) 
+     [[12.2  12.8   3.26]
+     [ 9.9   2.2   3.27]
+     [12.    7.4   3.18]
+     ...
+     [12.4   1.8   3.19]
+     [ 9.4   9.7   3.3 ]
+     [ 8.7  15.5   2.9 ]] 
+    
+    
+    랜덤포레스트를 이용한 교차 검증 점수 확인
+    0.9973541965122431 0.8905151032797809 
+    
+    
+    랜덤 포레스트 모델을 훈련한 train세트의 특성 중요도
+     alcohol,     sugar,     pH
+     [0.23167441 0.50039841 0.26792718] 
+    당도점수가 높다
+    
+     
+    train세트로 훈련하여 OOB 점수 출력...
+    OOB SCORE : 0.8934000384837406 
+    
+    
+    엑스트라 트리로 모델 교차 검증 점수 확인 
+    0.9973541965122431 0.8905151032797809 
+    
+    
+    엑스트라 트리로 훈련한 train세트의 특성 중요도
+     alcohol,     sugar,     pH
+    [0.20183568 0.52242907 0.27573525]
+    그레이디언트 부스팅을 이용해 와인 데이터셋의 교차 검증 점수 확인
+    0.8881086892152563 0.8720430147331015 
+    
+    
+    성능향상을 위해 학습률증가 및 트리개수 증가 후 점수 확인
+    0.9464595437171814 0.8780082549788999 
+    
+    
+    그레이디언트 부스팅으로 훈련한 train세트의 특성 중요도
+     alcohol,     sugar,     pH
+    [0.15872278 0.68010884 0.16116839] 
+    
+    
+    히스토그램 기반 그레이디언트 부스팅을 이용한 검증점수 확인
+    0.9321723946453317 0.8801241948619236 
+    
+    
+    히스토그램 기반 그레이디언트 부스팅으로 훈련한 train세트의 특성 중요도
+     alcohol,     sugar,     pH
+    [0.08876275 0.23438522 0.08027708] 
+    
+    
+    히스토그램 기반 그레이디언트 부스팅으로 훈련한 test세트의 특성 중요도
+     alcohol,     sugar,     pH
+    [0.05969231 0.20238462 0.049     ] 
+    
+    
+    테스트세트의 성능 최종 확인
+    XGBoost를 사용해 와인 데이터의 교차 검증 점수 확인
+    0.8824322471423747 0.8726214185237284 
+    
+    
+    LightGBM를 사용해 와인 데이터의 교차 검증 점수 확인
+    0.9338079582727165 0.8789710890649293 
+    
+    
+    
